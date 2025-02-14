@@ -1,0 +1,21 @@
+#!/bin/bash
+
+data_dir=/data/hbase
+logs_dir=/data/logs
+zk_dir=/data/zookeeper
+
+mkdir -p $data_dir $logs_dir $zk_dir
+
+sed -i "s,^hbase.log.dir=.*,hbase.log.dir=$logs_dir," \
+    /opt/hbase/conf/log4j.properties
+
+sed -i -e "s,@DATA_DIR@,$data_dir,g" \
+    -e "s,@ZK_DIR@,$zk_dir,g"
+
+# Thrift server (background)
+# Ports: 9090 API and 9095 UI
+$HBASE_SERVER thrift start > $logs_dir/hbase-thrift.log 2>&1 &
+
+# Master server (Foreground) that also starts the region server
+# Ports: Master: 16000 API, 16010 UI; 2181 ZK;  Region: 16020 API, 16030 UI
+exec "$HBASE_SERVER" master start 2>&1 | tee $logs_dir/hbase-master.log
